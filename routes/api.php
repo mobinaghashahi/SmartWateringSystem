@@ -34,7 +34,7 @@ Route::post('/get_last_watering_status', function (Request $request) {
     ]);
 })->middleware('auth:sanctum');
 
-Route::post('/get_last_watering_history', function (Request $request) {
+Route::post('/get_watering_history', function (Request $request) {
     $state = State::where('uuid', $request->uuid)->get();
     return response()->json([
         'states' => $state

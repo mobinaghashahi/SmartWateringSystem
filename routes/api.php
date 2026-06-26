@@ -2,10 +2,11 @@
 
 use App\Models\User;
 use App\Models\Devices;
+use App\Models\State;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
-
+//get token by uuid for devices request
 Route::post('/get_token', function (Request $request) {
     $devices=Devices::where('uuid', $request->uuid)->first();
 
@@ -25,6 +26,20 @@ Route::post('/get_token', function (Request $request) {
         'token' => $token->plainTextToken
     ]);
 });
+
+Route::post('/get_last_watering_status', function (Request $request) {
+    $state=State::where('uuid', $request->uuid)->orderBy('command_date', 'desc')->first();
+    return response()->json([
+        'state'=>$state
+    ]);
+})->middleware('auth:sanctum');
+
+Route::post('/get_last_watering_history', function (Request $request) {
+    $state=State::where('uuid', $request->uuid)->get();
+    return response()->json([
+        'states'=>$state
+    ]);
+})->middleware('auth:sanctum');
 
 
 Route::post('/user', function (Request $request) {

@@ -27,57 +27,57 @@ Route::post('/get_token', function (Request $request) {
     ]);
 });
 
-Route::post('/get_last_watering_status', function (Request $request) {
-    $state = State::where('uuid', $request->uuid)->orderBy('command_date', 'desc')->first();
-    return response()->json([
-        'state' => $state
-    ]);
-})->middleware('auth:sanctum');
 
-Route::post('/get_watering_history', function (Request $request) {
-    $state = State::where('uuid', $request->uuid)->get();
-    return response()->json([
-        'states' => $state
-    ]);
-})->middleware('auth:sanctum');
+Route::prefix('watering')
+    ->middleware('auth:sanctum')
+    ->group(function () {
+    Route::post('/get_last_status', function (Request $request) {
+        $state = State::where('uuid', $request->uuid)->orderBy('command_date', 'desc')->first();
+        return response()->json([
+            'state' => $state
+        ]);
+    });
 
-Route::post('/turn_off_watering', function (Request $request) {
-    $request->validate([
-        'uuid' => 'required|string|exists:devices,uuid',
-    ]);
-    $uuid=$request->uuid;
-    $state = new State();
-    $state->watering_state = 0;
-    $state->uuid = $uuid;
-    $state->save();
+    Route::post('/get_history', function (Request $request) {
+        $state = State::where('uuid', $request->uuid)->get();
+        return response()->json([
+            'states' => $state
+        ]);
+    });
 
-    return response()->json([
-        'success' => true
-    ]);
-})->middleware('auth:sanctum');
+    Route::post('/turn_off', function (Request $request) {
+        $request->validate([
+            'uuid' => 'required|string|exists:devices,uuid',
+        ]);
+        $uuid = $request->uuid;
+        $state = new State();
+        $state->watering_state = 0;
+        $state->uuid = $uuid;
+        $state->save();
 
-Route::post('/turn_on_watering', function (Request $request) {
-    $request->validate([
-        'uuid' => 'required|string|exists:devices,uuid',
-    ]);
-    $uuid=$request->uuid;
-    $state = new State();
-    $state->watering_state = 1;
-    $state->uuid = $uuid;
-    $state->save();
+        return response()->json([
+            'success' => true
+        ]);
+    });
 
-    return response()->json([
-        'success' => true
-    ]);
-})->middleware('auth:sanctum');
+    Route::post('/turn_on', function (Request $request) {
+        $request->validate([
+            'uuid' => 'required|string|exists:devices,uuid',
+        ]);
+        $uuid = $request->uuid;
+        $state = new State();
+        $state->watering_state = 1;
+        $state->uuid = $uuid;
+        $state->save();
+
+        return response()->json([
+            'success' => true
+        ]);
+    });
+});
 
 
 Route::post('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
-Route::post('/test', function (Request $request) {
-    return ['name' => [
-        'ali',
-        'hassan'
-    ]];
-});
+

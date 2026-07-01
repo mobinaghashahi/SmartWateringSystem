@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class Device_version extends Model
 {
+
+    protected $table = 'device_version';
     // Add fillable properties
     protected $fillable = ['update_installed', 'update_date', 'uuid','update_version','update_file_name'];
 }

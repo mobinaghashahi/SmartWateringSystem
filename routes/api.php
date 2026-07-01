@@ -3,6 +3,7 @@
 use App\Models\User;
 use App\Models\Devices;
 use App\Models\State;
+use App\Models\Device_version;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -75,6 +76,39 @@ Route::prefix('v1')->group(function () {
                 return response()->json([
                     'success' => true
                 ]);
+            });
+        });
+    Route::prefix('update')
+        ->middleware('auth:sanctum')
+        ->group(function () {
+
+            //Get last version
+            Route::post('/get_last_version', function (Request $request) {
+                $request->validate([
+                    'uuid' => 'required|string|exists:devices,uuid',
+                ]);
+                $uuid = $request->uuid;
+
+                $device_version = Device_version::where('uuid', $uuid)->get();
+
+                return response()->json(
+                     $device_version
+                );
+            });
+
+            //This API call is made when the update is installed successfully
+            Route::post('/installed_update', function (Request $request) {
+                $request->validate([
+                    'uuid' => 'required|string|exists:devices,uuid',
+                ]);
+                $uuid = $request->uuid;
+
+                Device_version::where('uuid',$uuid)->update(['update_installed' => 1]);
+
+                return response()->json([
+                    'success' => true,
+                    'message'=> "Installed update success change."
+                    ]);
             });
         });
 

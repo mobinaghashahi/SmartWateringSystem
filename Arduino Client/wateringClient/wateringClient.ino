@@ -91,7 +91,7 @@ void loop() {
 
   }
   
-  Serial.println(isNewVersionAvailable(token, chipId));
+  //Serial.println(isNewVersionAvailable(token, chipId));
 
 }
 void waitingForWifiNotice(){
@@ -243,10 +243,11 @@ bool updateFirmware(String chipId,const String& token) {
   }
 
   Serial.println("Firmware found. Starting update...");
-  sendInstalledUpdate(chipId,token);
+  
   // -----------------------------
   // 2. START OTA UPDATE
   // -----------------------------
+  ESPhttpUpdate.rebootOnUpdate(false);
   t_httpUpdate_return ret = ESPhttpUpdate.update(client, url);
 
   switch (ret) {
@@ -262,7 +263,9 @@ bool updateFirmware(String chipId,const String& token) {
 
     case HTTP_UPDATE_OK:
       Serial.println("UPDATE SUCCESSFUL!");
+      sendInstalledUpdate(chipId,token);
       Serial.println("Device will restart...");
+      ESP.restart();
       return true; // بعدش ریست می‌شود
   }
 

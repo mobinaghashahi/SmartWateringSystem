@@ -15,6 +15,7 @@
 #include <WiFiManager.h>
 #include <ArduinoJson.h>
 
+
 WiFiManager wifiManager;
 
 const char *ssid =  "ForsatTalab";     // replace with your wifi ssid and wpa2 key
@@ -27,7 +28,7 @@ IPAddress subnet(255, 255, 255, 0);
 IPAddress primaryDNS(8, 8, 8, 8);
 IPAddress secondaryDNS(8, 8, 4, 4);
 
-String serverName = "http://192.168.37.23:8000/";
+String serverName = "http://192.168.37.23:8000";
 
 //This must change for NewVersion
 String currentVersion = "1.1.15";
@@ -68,13 +69,14 @@ wifiManager.setSTAStaticIPConfig(
 
   Serial.println("");
   Serial.println("WiFi connected"); 
-  lastState=nowState();
+  //lastState=nowState();
   sendMessageToBot("started");
 
 }
 
 void loop() {  
   delay(3000);
+
   Serial.print("chip ID is:" +chipId);
   String token;
   bool isAvailableNewVersion;
@@ -83,9 +85,12 @@ void loop() {
   isAvailableNewVersion=isNewVersionAvailable(token, chipId);
   if(isAvailableNewVersion){
     Serial.println("An Update is available");
-    //updateAvailableNotice();
-    //update();
+    
+    updateAvailableNotice();
+    updateFirmware(chipId,token);
+
   }
+  
   Serial.println(isNewVersionAvailable(token, chipId));
 
 }
@@ -115,29 +120,29 @@ void updateAvailableNotice(){
   delay(5000);
   digitalWrite(4, LOW);
 }
-bool nowState(){
-  WiFiClientSecure client;
-  client.setInsecure(); //the magic line, use with caution
-  client.connect(serverName, 443);
-  HTTPClient http;
-  http.begin(client, serverName);
-
-  String payload;
-  if (http.GET() == HTTP_CODE_OK)    
-  payload = http.getString(); 
-  Serial.print(payload);
-  if(payload=="1")
-  {
-    Serial.print("HIGHT");
-    return false;
-  }
-  if(payload=="0")
-  {
-    Serial.print("LOW");
-    return true;
-  } 
-  return lastState;
-}
+//bool nowState(){
+//  WiFiClientSecure client;
+//  client.setInsecure(); //the magic line, use with caution
+//  client.connect(serverName, 443);
+//  HTTPClient http;
+//  http.begin(client, serverName);
+//
+//  String payload;
+//  if (http.GET() == HTTP_CODE_OK)    
+//  payload = http.getString(); 
+//  Serial.print(payload);
+//  if(payload=="1")
+//  {
+//    Serial.print("HIGHT");
+//    return false;
+//  }
+//  if(payload=="0")
+//  {
+//    Serial.print("LOW");
+//    return true;
+//  } 
+//  return lastState;
+//}
 bool sendMessageToBot(String message)
 {
   String urlServer="https://www.mobinaghashahi.ir/watering/sendMessageToBot.php?key=Mobin.mobin7060&message="+message;
@@ -162,7 +167,7 @@ bool isNewVersionAvailable(const String& token, const String& uuid)
     WiFiClient client;
     HTTPClient http;
 
-    String url = "http://192.168.37.23:8000/api/v1/update/get_last_version";
+    String url = serverName+"/api/v1/update/get_last_version";
 
     if (!http.begin(client, url))
     {
@@ -210,31 +215,58 @@ bool isNewVersionAvailable(const String& token, const String& uuid)
     return updateInstalled == 0;
 }
 
-void update(){
-  WiFiClient client;
-  t_httpUpdate_return ret = ESPhttpUpdate.update(client,"http://192.168.37.200/watering.bin");
-HTTPClient http;
-http.begin(client,"http://192.168.37.200/watering.bin");
-int httpCode = http.GET();
-Serial.print("HTTP Code: ");
-Serial.println(httpCode);
+bool updateFirmware(String chipId,const String& token) {
 
-if (httpCode == 200) {
-  Serial.println("URL is OK!");
-} else {
-  Serial.println("Something's wrong with the URL or server");
-}
-  switch(ret) {
-    case HTTP_UPDATE_FAILED:
-      Serial.printf("Update failed: %s\n", ESPhttpUpdate.getLastErrorString().c_str());
-      break;
-    case HTTP_UPDATE_NO_UPDATES:
-      Serial.println("No updates");
-      break;
-    case HTTP_UPDATE_OK:
-      Serial.println("Update ok!");
-      break;
+  WiFiClient client;
+  HTTPClient http;
+
+  String url = "http://192.168.37.200/" + chipId + ".bin";
+
+  Serial.println("Checking firmware file...");
+  Serial.println(url);
+
+  // -----------------------------
+  // 1. CHECK FILE EXISTS (HEAD)
+  // -----------------------------
+  http.begin(client, url);
+
+  int httpCode = http.sendRequest("HEAD");
+
+  Serial.print("HTTP Code: ");
+  Serial.println(httpCode);
+
+  http.end();
+
+  if (httpCode != HTTP_CODE_OK) {
+    Serial.println("Firmware file not found on server!");
+    return false;
   }
+
+  Serial.println("Firmware found. Starting update...");
+  sendInstalledUpdate(chipId,token);
+  // -----------------------------
+  // 2. START OTA UPDATE
+  // -----------------------------
+  t_httpUpdate_return ret = ESPhttpUpdate.update(client, url);
+
+  switch (ret) {
+
+    case HTTP_UPDATE_FAILED:
+      Serial.printf("UPDATE FAILED: %s\n",
+        ESPhttpUpdate.getLastErrorString().c_str());
+      return false;
+
+    case HTTP_UPDATE_NO_UPDATES:
+      Serial.println("No update available.");
+      return false;
+
+    case HTTP_UPDATE_OK:
+      Serial.println("UPDATE SUCCESSFUL!");
+      Serial.println("Device will restart...");
+      return true; // بعدش ریست می‌شود
+  }
+
+  return false;
 }
 
 String getToken(const String& uuid)
@@ -242,7 +274,7 @@ String getToken(const String& uuid)
     WiFiClient client;
     HTTPClient http;
 
-    String url = "http://192.168.37.23:8000/api/v1/get_token";
+    String url = serverName+"/api/v1/get_token";
 
     if (!http.begin(client, url))
     {
@@ -280,3 +312,38 @@ String getToken(const String& uuid)
     return doc["token"].as<String>();
 }
 
+void sendInstalledUpdate(String uuid,const String& token) {
+
+  WiFiClient client;
+  HTTPClient http;
+
+  String url = serverName+"/api/v1/update/installed_update";
+
+  http.begin(client, url);
+
+  // -----------------------------
+  // Headers
+  // -----------------------------
+  http.addHeader("Authorization", "Bearer " + token);
+  http.addHeader("Content-Type", "multipart/form-data; boundary=----iot");
+
+  // -----------------------------
+  // Body (form-data)
+  // -----------------------------
+  String body =
+    "------iot\r\n"
+    "Content-Disposition: form-data; name=\"uuid\"\r\n\r\n" +
+    uuid +
+    "\r\n------iot--\r\n";
+
+  int httpCode = http.POST(body);
+
+  Serial.print("HTTP Code: ");
+  Serial.println(httpCode);
+
+  String response = http.getString();
+  Serial.println("Response:");
+  Serial.println(response);
+
+  http.end();
+}

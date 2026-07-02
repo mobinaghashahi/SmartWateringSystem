@@ -1,0 +1,11 @@
+{
+    "mcpServers": {
+        "laravel-boost": {
+            "command": "C:\\xampp\\php\\php.exe",
+            "args": [
+                "E:\\project\\prjprogramm\\arduino\\SmartWateringSystem\\artisan",
+                "boost:mcp"
+            ]
+        }
+    }
+}
